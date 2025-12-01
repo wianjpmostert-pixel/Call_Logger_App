@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Employee Login</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+    <div class="container">
+        <h2>Employee Login</h2>
+    {% if login_message %}
+    <p class="login-message">{{ login_message }}</p>
+    {% endif %}
+        <form method="post">
+            <label for="employee_name">Employee Name:</label>
+            <input type="text" id="employee_name" name="employee_name" required>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            <button type="submit">Log In</button>
+        </form>
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <ul class=flashes>
+            {% for message in messages %}
+              <li>{{ message }}</li>
+            {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+    </div>
+</body>
+</html>

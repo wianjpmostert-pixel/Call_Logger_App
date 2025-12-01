@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>General Settings</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-bar">
+        <h2>General Settings</h2>
+        <div class="top-actions">
+            <a class="button-link" href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+            <a class="button-link" href="{{ url_for('admin_users') }}">View Users</a>
+            <a class="button-link" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
+    <div class="admin-wrapper">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <ul class="flashes">
+              {% for message in messages %}
+                <li>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+        <div class="form-card">
+            <form method="post">
+                <label for="login_message">Login Page Message</label>
+                <textarea id="login_message" name="login_message" rows="4" placeholder="Displayed below the login heading.">{{ login_message }}</textarea>
+                <button type="submit">Save Settings</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

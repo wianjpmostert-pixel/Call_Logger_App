@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Users</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-bar">
+        <h2>Manage Users</h2>
+        <div class="top-actions">
+            <a class="button-link" href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+            <a class="button-link" href="{{ url_for('admin_add_user') }}">Add User</a>
+            <a class="button-link" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
+    <div class="admin-wrapper">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <ul class="flashes">
+              {% for message in messages %}
+                <li>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+        <div class="page-header">
+            <h3>Current Users</h3>
+            <span>{{ employees|length }} total</span>
+        </div>
+        <div class="employee-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Total Calls</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in employees %}
+                    <tr>
+                        <td>{{ employee.name }}</td>
+                        <td>{{ employee.call_total }}</td>
+                        <td>
+                            {% if employee.last_login %}
+                                {{ employee.last_login.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                                Never
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="post" action="{{ url_for('admin_delete_user', employee_id=employee.id) }}" onsubmit="return confirm('Delete {{ employee.name }}? This cannot be undone.');">
+                                <button type="submit" class="danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if employees|length == 0 %}
+                    <tr>
+                        <td colspan="4" style="text-align:center;">No users found.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

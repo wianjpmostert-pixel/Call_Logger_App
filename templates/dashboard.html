@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Employee Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-bar">
+        <h2>Dashboard</h2>
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+    <div class="dashboard-container">
+        <div class="left-panel">
+            <h3>Log a New Call</h3>
+            <form method="post" action="{{ url_for('dashboard') }}">
+                <label for="person_name">Person's Name:</label>
+                <input type="text" id="person_name" name="person_name" required>
+
+                <label for="person_number">Person's Number:</label>
+                <input type="text" id="person_number" name="person_number" required>
+
+                <label for="property_value">Property Value:</label>
+                <input type="text" id="property_value" name="property_value" placeholder="e.g. R 1 950 000">
+
+                <label for="answered">Answered:</label>
+                <select id="answered" name="answered">
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                </select>
+
+                <label for="outcome">Outcome:</label>
+                <textarea id="outcome" name="outcome" rows="4"></textarea>
+
+                <button type="submit">Log Call</button>
+            </form>
+        </div>
+        <div class="right-panel">
+            <div class="view-toggle">
+                <button id="switch-view-btn">Switch View</button>
+            </div>
+
+            {% if is_admin and viewing_employee %}
+            <div class="admin-banner">
+                <div>
+                    <strong>Admin Mode:</strong> Viewing {{ viewing_employee.name }}'s dashboard
+                </div>
+                <div>
+                    <a href="{{ url_for('admin_stop_impersonation') }}">Return to Admin Dashboard</a>
+                </div>
+            </div>
+            {% endif %}
+
+            <div id="list-view" style="display: block;">
+                <h3>Your Logged Calls</h3>
+                <table>
+                    <tr>
+                        <th>Person's Name</th>
+                        <th>Person's Number</th>
+                        <th>Property Value</th>
+                        <th>Answered</th>
+                        <th>Outcome</th>
+                        <th>Time</th>
+                    </tr>
+                    {% for call in calls %}
+                    <tr>
+                        <td>{{ call.person_name }}</td>
+                        <td>{{ call.person_number }}</td>
+                        <td>{{ call.property_value or '-' }}</td>
+                        <td>{{ "Yes" if call.answered else "No" }}</td>
+                        <td>{{ call.outcome }}</td>
+                        <td>{{ call.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+
+            <div id="calendar-view" style="display: none;" data-call-dates='{{ call_dates | tojson | safe }}'>
+                <h3>Call Log Calendar</h3>
+                <div class="calendar-header">
+                    <button id="prev-month-btn">&lt;</button>
+                    <h4 id="month-year"></h4>
+                    <button id="next-month-btn">&gt;</button>
+                </div>
+                <table class="calendar">
+                    <thead>
+                        <tr>
+                            <th>Sun</th>
+                            <th>Mon</th>
+                            <th>Tue</th>
+                            <th>Wed</th>
+                            <th>Thu</th>
+                            <th>Fri</th>
+                            <th>Sat</th>
+                        </tr>
+                    </thead>
+                    <tbody id="calendar-body">
+                        <!-- Calendar days will be generated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const switchViewBtn = document.getElementById('switch-view-btn');
+            const listView = document.getElementById('list-view');
+            const calendarView = document.getElementById('calendar-view');
+            const prevMonthBtn = document.getElementById('prev-month-btn');
+            const nextMonthBtn = document.getElementById('next-month-btn');
+            const monthYearEl = document.getElementById('month-year');
+            const calendarBody = document.getElementById('calendar-body');
+
+            let currentDate = new Date();
+            const calendarData = document.getElementById('calendar-view');
+            const callDates = new Set(JSON.parse(calendarData.dataset.callDates || '[]'));
+
+            function renderCalendar(date) {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                monthYearEl.textContent = `${date.toLocaleString('default', { month: 'long' })} ${year}`;
+                calendarBody.innerHTML = '';
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                let dateCounter = 1;
+                for (let i = 0; i < 6; i++) {
+                    const row = document.createElement('tr');
+                    for (let j = 0; j < 7; j++) {
+                        const cell = document.createElement('td');
+                        if (i === 0 && j < firstDayOfMonth) {
+                            // Empty cells
+                        } else if (dateCounter > daysInMonth) {
+                            // Empty cells
+                        } else {
+                            cell.textContent = dateCounter;
+                            cell.classList.add('calendar-day');
+                            const cellDate = new Date(year, month, dateCounter);
+                            const dateStr = `${cellDate.getFullYear()}-${String(cellDate.getMonth() + 1).padStart(2, '0')}-${String(cellDate.getDate()).padStart(2, '0')}`;
+                            cell.dataset.date = dateStr;
+                            
+                            if (callDates.has(dateStr)) {
+                                cell.classList.add('has-calls');
+                            }
+
+                            cell.addEventListener('click', () => {
+                                window.location.href = `/dashboard?date=${dateStr}`;
+                            });
+                            dateCounter++;
+                        }
+                        row.appendChild(cell);
+                    }
+                    calendarBody.appendChild(row);
+                    if (dateCounter > daysInMonth) break;
+                }
+            }
+
+            switchViewBtn.addEventListener('click', () => {
+                const isListVisible = listView.style.display !== 'none';
+                if (isListVisible) {
+                    // Switch to Calendar View
+                    listView.style.display = 'none';
+                    calendarView.style.display = 'block';
+                    renderCalendar(currentDate);
+                } else {
+                    // Switch to List View
+                    listView.style.display = 'block';
+                    calendarView.style.display = 'none';
+                }
+            });
+
+            prevMonthBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                renderCalendar(currentDate);
+            });
+
+            nextMonthBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                renderCalendar(currentDate);
+            });
+
+            // Initial setup: By default, the list view is shown.
+            // The calendar is hidden via inline style.
+            // No initial JS action is needed unless a specific condition
+            // requires the calendar to be shown first.
+        });
+    </script>
+</body>
+</html>

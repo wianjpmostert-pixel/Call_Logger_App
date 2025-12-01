@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add User</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-bar">
+        <h2>Add User</h2>
+        <div class="top-actions">
+            <a class="button-link" href="{{ url_for('admin_users') }}">View Users</a>
+            <a class="button-link" href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+            <a class="button-link" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
+    <div class="admin-wrapper">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <ul class="flashes">
+              {% for message in messages %}
+                <li>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+        <div class="form-card">
+            <form method="post">
+                <label for="name">Employee Name</label>
+                <input type="text" id="name" name="name" placeholder="e.g. Jane Doe" required>
+
+                <label for="password">Temporary Password</label>
+                <input type="text" id="password" name="password" placeholder="Set an initial password" required>
+
+                <button type="submit">Create User</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
