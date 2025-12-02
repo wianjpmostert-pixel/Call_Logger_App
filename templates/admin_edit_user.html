@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit User</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-bar">
+        <h2>Edit {{ employee.name }}</h2>
+        <div class="top-actions">
+            <a class="button-link" href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+            <a class="button-link" href="{{ url_for('admin_users') }}">View Users</a>
+            <a class="button-link" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
+    <div class="form-wrapper">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <ul class="flashes">
+              {% for message in messages %}
+                <li>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+        <form method="post">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" value="{{ employee.name }}" required>
+
+            <label for="password">Password</label>
+            <input type="text" id="password" name="password" value="{{ employee.password }}" required>
+
+            <button type="submit">Save Changes</button>
+        </form>
+    </div>
+</body>
+</html>
