@@ -92,6 +92,11 @@
                         <th>Person</th>
                         <th>Number</th>
                         <th>Property Value</th>
+                        <th>Property Type</th>
+                        <th>Property Address</th>
+                        <th>Property Number</th>
+                        <th>Call Status</th>
+                        <th>Call Outcome</th>
                         <th>Answered</th>
                         <th>Outcome</th>
                         <th>Timestamp</th>
@@ -103,6 +108,11 @@
                         <td>{{ call.person_name }}</td>
                         <td>{{ call.person_number }}</td>
                         <td>{{ call.property_value or '-' }}</td>
+                        <td>{{ call.property_type or '-' }}</td>
+                        <td>{{ call.property_address or '-' }}</td>
+                        <td>{{ call.property_number or '-' }}</td>
+                        <td>{{ call.call_status or '-' }}</td>
+                        <td>{{ call.call_outcome or '-' }}</td>
                         <td>{{ 'Yes' if call.answered else 'No' }}</td>
                         <td>{{ call.outcome }}</td>
                         <td>{{ call.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>

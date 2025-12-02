@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 import datetime
 import re
+import csv
+import io
 from sqlalchemy import func, text
 
 app = Flask(__name__)
@@ -41,6 +43,11 @@ class Call(db.Model):
     answered = db.Column(db.Boolean, default=False, nullable=False)
     outcome = db.Column(db.Text, nullable=True)
     property_value = db.Column(db.String(100), nullable=True)
+    property_type = db.Column(db.String(64), nullable=True)
+    property_address = db.Column(db.String(255), nullable=True)
+    property_number = db.Column(db.String(100), nullable=True)
+    call_status = db.Column(db.String(64), nullable=True)
+    call_outcome = db.Column(db.String(32), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     def __repr__(self):
@@ -62,10 +69,24 @@ admin.add_view(ModelView(Call, db.session))
 def _ensure_schema_updates():
     with app.app_context():
         db.create_all()
-        existing_columns = db.session.execute(text("PRAGMA table_info(call)"))
-        has_property_value = any(row[1] == 'property_value' for row in existing_columns)
-        if not has_property_value:
-            db.session.execute(text("ALTER TABLE call ADD COLUMN property_value TEXT"))
+        existing_columns = list(db.session.execute(text("PRAGMA table_info(call)")))
+        column_names = {row[1] for row in existing_columns}
+        statements = []
+        if 'property_value' not in column_names:
+            statements.append("ALTER TABLE call ADD COLUMN property_value TEXT")
+        if 'property_type' not in column_names:
+            statements.append("ALTER TABLE call ADD COLUMN property_type TEXT")
+        if 'property_address' not in column_names:
+            statements.append("ALTER TABLE call ADD COLUMN property_address TEXT")
+        if 'property_number' not in column_names:
+            statements.append("ALTER TABLE call ADD COLUMN property_number TEXT")
+        if 'call_status' not in column_names:
+            statements.append("ALTER TABLE call ADD COLUMN call_status TEXT")
+        if 'call_outcome' not in column_names:
+            statements.append("ALTER TABLE call ADD COLUMN call_outcome TEXT")
+        for sql in statements:
+            db.session.execute(text(sql))
+        if statements:
             db.session.commit()
 
 
@@ -73,6 +94,20 @@ _ensure_schema_updates()
 
 
 _CURRENCY_STRIPPER = re.compile(r'[^0-9,.-]')
+PROPERTY_TYPE_OPTIONS = [
+    'House',
+    'Vacant Land',
+    'Farm',
+    'Apartment Building',
+    'Commercial',
+    'Industrial'
+]
+CALL_STATUS_OPTIONS = [
+    'Answered',
+    'No Answer',
+    'No Answer and Left Message'
+]
+CALL_OUTCOME_OPTIONS = ['Yes', 'No', 'Undetermined']
 
 
 def _parse_property_value(raw_value):
@@ -92,6 +127,27 @@ def _format_currency(amount):
     if amount is None:
         return 'R 0'
     return f"R {amount:,.0f}"
+
+
+def _sanitize_property_type(raw_value):
+    if not raw_value:
+        return None
+    normalized = raw_value.strip()
+    return normalized if normalized in PROPERTY_TYPE_OPTIONS else None
+
+
+def _sanitize_call_status(raw_value):
+    if not raw_value:
+        return None
+    normalized = raw_value.strip()
+    return normalized if normalized in CALL_STATUS_OPTIONS else None
+
+
+def _sanitize_call_outcome(raw_value):
+    if not raw_value:
+        return None
+    normalized = raw_value.strip()
+    return normalized if normalized in CALL_OUTCOME_OPTIONS else None
 
 
 def get_setting_value(key, default=''):
@@ -165,9 +221,15 @@ def dashboard():
     if request.method == 'POST':
         person_name = request.form['person_name']
         person_number = request.form['person_number']
-        answered = request.form.get('answered') == 'yes'
+        call_outcome_value = _sanitize_call_outcome(request.form.get('call_outcome'))
+        answered = call_outcome_value == 'Yes'
         outcome = request.form['outcome']
         property_value = request.form.get('property_value', '').strip()
+        property_type = _sanitize_property_type(request.form.get('property_type'))
+        property_address = request.form.get('property_address', '').strip()
+        property_number = request.form.get('property_number', '').strip()
+        call_status = _sanitize_call_status(request.form.get('call_status'))
+        call_outcome = call_outcome_value or 'Undetermined'
 
         new_call = Call(
             person_name=person_name,
@@ -175,6 +237,11 @@ def dashboard():
             answered=answered,
             outcome=outcome,
             property_value=property_value or None,
+            property_type=property_type,
+            property_address=property_address or None,
+            property_number=property_number or None,
+            call_status=call_status,
+            call_outcome=call_outcome,
             employee_id=employee_id
         )
         db.session.add(new_call)
@@ -204,7 +271,10 @@ def dashboard():
         calls=calls,
         call_dates=call_dates,
         is_admin=is_admin,
-        viewing_employee=employee if is_admin else None
+        viewing_employee=employee if is_admin else None,
+        property_types=PROPERTY_TYPE_OPTIONS,
+        call_status_options=CALL_STATUS_OPTIONS,
+        call_outcome_options=CALL_OUTCOME_OPTIONS
     )
 
 def _require_admin():
@@ -309,6 +379,7 @@ def admin_dashboard():
         no_count=no_count,
         total_employees=len(employees),
         month_label=month_start.strftime('%B %Y'),
+        current_month_param=month_start.strftime('%Y-%m'),
         month_yes=month_yes,
         month_no=month_no,
         month_total_calls=month_total_calls,
@@ -319,6 +390,71 @@ def admin_dashboard():
         prev_month_param=prev_month_param,
         next_month_param=next_month_param
     )
+
+
+@app.route('/admin/export/calls.csv')
+def admin_export_calls():
+    if not _require_admin():
+        return redirect(url_for('login'))
+
+    month_param = request.args.get('month')
+    query = (
+        db.session.query(Call, Employee.name.label('employee_name'))
+        .join(Employee)
+        .order_by(Call.timestamp.desc())
+    )
+    filename_suffix = 'all'
+
+    if month_param:
+        try:
+            month_start_date = datetime.datetime.strptime(month_param, '%Y-%m').date().replace(day=1)
+            month_end_date = (month_start_date + datetime.timedelta(days=32)).replace(day=1)
+            month_start = datetime.datetime.combine(month_start_date, datetime.time.min)
+            month_end = datetime.datetime.combine(month_end_date, datetime.time.min)
+            query = query.filter(Call.timestamp >= month_start, Call.timestamp < month_end)
+            filename_suffix = month_start_date.strftime('%Y_%m')
+        except ValueError:
+            pass
+
+    output = io.StringIO()
+    output.write('sep=,\n')  # Hint Excel to treat comma as delimiter
+    writer = csv.writer(output)
+    writer.writerow([
+        'Call ID',
+        'Employee',
+        'Person Name',
+        'Person Number',
+        'Call Status',
+        'Call Outcome',
+        'Answered',
+        'Outcome',
+        'Property Value',
+        'Property Type',
+        'Property Address',
+        'Property Number',
+        'Timestamp'
+    ])
+
+    for call, employee_name in query.all():
+        writer.writerow([
+            call.id,
+            employee_name,
+            call.person_name,
+            call.person_number,
+            call.call_status or '',
+            call.call_outcome or '',
+            'Yes' if call.answered else 'No',
+            call.outcome or '',
+            call.property_value or '',
+            call.property_type or '',
+            call.property_address or '',
+            call.property_number or '',
+            call.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        ])
+
+    response = Response(output.getvalue(), mimetype='text/csv')
+    response.headers['Content-Disposition'] = f'attachment; filename=calls_{filename_suffix}.csv'
+    return response
 
 
 @app.route('/admin/users')

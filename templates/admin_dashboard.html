@@ -164,6 +164,7 @@
             <a class="button-link" href="{{ url_for('admin_add_user') }}">Add User</a>
             <a class="button-link" href="{{ url_for('admin_users') }}">View Users</a>
             <a class="button-link" href="{{ url_for('admin_settings') }}">General Settings</a>
+            <a class="button-link" href="{{ url_for('admin_export_calls', month=current_month_param) }}">Export CSV</a>
             <a class="button-link subtle" href="{{ url_for('logout') }}">Logout</a>
         </div>
     </div>

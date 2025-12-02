@@ -22,13 +22,37 @@
                 <label for="property_value">Property Value:</label>
                 <input type="text" id="property_value" name="property_value" placeholder="e.g. R 1 950 000">
 
-                <label for="answered">Answered:</label>
-                <select id="answered" name="answered">
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
+                <label for="property_type">Property Type:</label>
+                <select id="property_type" name="property_type">
+                    <option value="">Select type</option>
+                    {% for option in property_types %}
+                    <option value="{{ option }}">{{ option }}</option>
+                    {% endfor %}
                 </select>
 
-                <label for="outcome">Outcome:</label>
+                <label for="property_address">Property Address:</label>
+                <input type="text" id="property_address" name="property_address" placeholder="Street, suburb, city">
+
+                <label for="property_number">Property Number:</label>
+                <input type="text" id="property_number" name="property_number" placeholder="Erf/Unit reference">
+
+                <label for="call_status">Call Status:</label>
+                <select id="call_status" name="call_status">
+                    <option value="">Select status</option>
+                    {% for option in call_status_options %}
+                    <option value="{{ option }}">{{ option }}</option>
+                    {% endfor %}
+                </select>
+
+                <label for="call_outcome">Outcome:</label>
+                <select id="call_outcome" name="call_outcome">
+                    <option value="">Select outcome</option>
+                    {% for option in call_outcome_options %}
+                    <option value="{{ option }}">{{ option }}</option>
+                    {% endfor %}
+                </select>
+
+                <label for="outcome">Notes / Extra Detail:</label>
                 <textarea id="outcome" name="outcome" rows="4"></textarea>
 
                 <button type="submit">Log Call</button>
@@ -57,6 +81,11 @@
                         <th>Person's Name</th>
                         <th>Person's Number</th>
                         <th>Property Value</th>
+                        <th>Property Type</th>
+                        <th>Property Address</th>
+                        <th>Property Number</th>
+                        <th>Call Status</th>
+                        <th>Call Outcome</th>
                         <th>Answered</th>
                         <th>Outcome</th>
                         <th>Time</th>
@@ -66,6 +95,11 @@
                         <td>{{ call.person_name }}</td>
                         <td>{{ call.person_number }}</td>
                         <td>{{ call.property_value or '-' }}</td>
+                        <td>{{ call.property_type or '-' }}</td>
+                        <td>{{ call.property_address or '-' }}</td>
+                        <td>{{ call.property_number or '-' }}</td>
+                        <td>{{ call.call_status or '-' }}</td>
+                        <td>{{ call.call_outcome or '-' }}</td>
                         <td>{{ "Yes" if call.answered else "No" }}</td>
                         <td>{{ call.outcome }}</td>
                         <td>{{ call.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
